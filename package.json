@@ -22,7 +22,7 @@
       "moduleType": "lib",
       "targetDirectory": "d2lfetch-dedupe",
       "creds": {
-        "key": "AKIAJYZ3X3B3O6UZIFAQ",
+        "key": "AKIAJ32HJEFOAO2L7B7A",
         "secretVar": "CDN_SECRET"
       },
       "devTagVar": "TRAVIS_COMMIT",

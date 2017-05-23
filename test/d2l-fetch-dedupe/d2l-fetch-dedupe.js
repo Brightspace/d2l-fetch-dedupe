@@ -80,6 +80,38 @@ describe('d2l-fetch-dedupe', function() {
 			});
 	});
 
+	it('matched responses should be cloned so that the body can be requested by each caller', function(done) {
+		var matchedResponse = new Response('{ dataprop: \'sweet sweet data\' }', { status: 200, statusText: 'super!' });
+		var firstRequest = getRequest('/path/to/data');
+		var firstNext = sandbox.stub().returns(Promise.resolve(matchedResponse));
+		var secondRequest = getRequest('/path/to/data');
+		var secondNext = sandbox.stub().returns(Promise.reject);
+		var thirdRequest = getRequest('/path/to/data');
+		var thirdNext = sandbox.stub().returns(Promise.reject);
+
+		Promise.all([
+			window.d2lfetch.dedupe(firstRequest, firstNext),
+			window.d2lfetch.dedupe(secondRequest, secondNext),
+			window.d2lfetch.dedupe(thirdRequest, thirdNext)
+		]).then(function(responses) {
+			// expect different promises
+			expect(responses[0]).not.to.equal(responses[1]);
+			expect(responses[1]).not.to.equal(responses[2]);
+			expect(responses[0]).not.to.equal(responses[2]);
+			Promise.all([
+				responses[0].json,
+				responses[1].json,
+				responses[2].json
+			]).then(function(bodies) {
+				// expect the same bodies
+				expect(bodies[0]).to.equal(bodies[1]);
+				expect(bodies[1]).to.equal(bodies[2]);
+				expect(bodies[0]).to.equal(bodies[2]);
+				done();
+			});
+		});
+	});
+
 	it('should match two requests if the URLs are the same and they have no Authorization header', function() {
 		var firstRequest = getRequest('/path/to/data');
 		var firstNext = sandbox.stub().returns(Promise.resolve());

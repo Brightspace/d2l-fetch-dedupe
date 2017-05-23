@@ -11,7 +11,7 @@ export class D2LFetchDedupe {
 
 		const key = this._getKey(request);
 		if (this._inflightRequests[key]) {
-			return this._inflightRequests[key];
+			return this._clone(this._inflightRequests[key]);
 		}
 
 		if (!next) {
@@ -19,14 +19,14 @@ export class D2LFetchDedupe {
 		}
 
 		const result = next(request);
-		if (result && true === result instanceof Promise) {
+		if (result && result instanceof Promise) {
 			this._inflightRequests[key] = result;
 			result.then(() => {
 				delete this._inflightRequests[key];
 			});
 		}
 
-		return result;
+		return this._clone(result);
 	}
 
 	_getKey(request) {
@@ -35,5 +35,13 @@ export class D2LFetchDedupe {
 		}
 
 		return request.url;
+	}
+
+	_clone(result) {
+		return result.then(function(response) {
+			if (response instanceof Response) {
+				return response.clone();
+			}
+		});
 	}
 }
