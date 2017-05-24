@@ -44,7 +44,5 @@
     "web-component-tester": "^6.0.0",
     "webpack": "^2.4.1"
   },
-  "dependencies": {
-    "frau-jwt": "^2.0.0"
-  }
+  "dependencies": {}
 }
