@@ -15,7 +15,7 @@ export class D2LFetchDedupe {
 		}
 
 		if (!next) {
-			return request;
+			return Promise.resolve(request);
 		}
 
 		const result = next(request);
