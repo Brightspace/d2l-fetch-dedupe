@@ -9,12 +9,23 @@ var invalidRequestInputs = [
 	{ whatiam: 'is not a Request'}
 ];
 
+var requestMethods = [
+	'DELETE',
+	'GET',
+	'HEAD',
+	'OPTIONS',
+	'PATCH',
+	'POST',
+	'PUT'
+];
+
 describe('d2l-fetch-dedupe', function() {
 
 	var sandbox;
 
-	function getRequest(path, headers) {
-		return new Request(path, { headers: headers });
+	function getRequest(path, headers, method) {
+		method = method || 'GET';
+		return new Request(path, { method: method, headers: headers });
 	}
 
 	beforeEach(function() {
@@ -190,5 +201,27 @@ describe('d2l-fetch-dedupe', function() {
 			.then(function() {
 				expect(secondNext).to.be.called;
 			});
+	});
+
+	requestMethods.forEach(function(method) {
+		it('should not match two requests if the URLs are the same, the authorization header is the same, but they are not GET, HEAD, or OPTIONS requests', function() {
+			var firstRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' }, method);
+			var firstNext = sandbox.stub().returns(Promise.resolve());
+			window.d2lfetch.dedupe(firstRequest, firstNext)
+				.then(function() {
+					expect(firstNext).to.be.called;
+				});
+
+			var secondRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' }, method);
+			var secondNext = sandbox.stub().returns(Promise.resolve());
+			return window.d2lfetch.dedupe(secondRequest, secondNext)
+				.then(function() {
+					if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') {
+						expect(secondNext).not.to.be.called;
+					} else {
+						expect(secondNext).to.be.called;
+					}
+				});
+		});
 	});
 });

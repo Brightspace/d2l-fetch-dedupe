@@ -9,6 +9,13 @@ export class D2LFetchDedupe {
 			return Promise.reject(new TypeError('Invalid request argument supplied; must be a valid window.Request object.'));
 		}
 
+		if (request.method !== 'GET' && request.method !== 'HEAD' && request.method !== 'OPTIONS') {
+			if (!next) {
+				return Promise.resolve(request);
+			}
+			return next(request);
+		}
+
 		const key = this._getKey(request);
 		if (this._inflightRequests[key]) {
 			return this._clone(this._inflightRequests[key]);
