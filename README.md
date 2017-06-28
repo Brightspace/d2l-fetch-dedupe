@@ -29,7 +29,7 @@ This will add the `dedupe` middleware function to the `d2lfetch` object.
 Install the `dedupe` middleware to d2lfetch via the `use` function and then start making your requests.
 
 ```js
-window.d2lfetch.use(window.d2lfetch.dedupe);
+window.d2lfetch.use({name: 'dedupe' fn: window.d2lfetch.dedupe});
 
 window.d2lfetch.fetch(new Request('http://example.com/api/someentity/'))
 	.then(function(response) {
