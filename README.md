@@ -18,7 +18,7 @@ npm run build
 Reference the script in your html after your reference to `d2l-fetch` (see [here](https://github.com/Brightspace/d2l-fetch) for details on d2l-fetch):
 
 ```html
-<script src="https://s.brightspace.com/lib/d2lfetch/0.2.0/d2lfetch.js"></script>
+<script src="https://s.brightspace.com/lib/d2lfetch/1.0.0/d2lfetch.js"></script>
 <script src="../dist/d2lfetch-dedupe.js"></script>
 ```
 
