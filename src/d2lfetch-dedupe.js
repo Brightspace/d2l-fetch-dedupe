@@ -1,7 +1,7 @@
 export class D2LFetchDedupe {
 
 	constructor() {
-		this._inflightRequests = [];
+		this._inflightRequests = this._inflightRequests || [];
 	}
 
 	dedupe(request, next) {
@@ -18,7 +18,8 @@ export class D2LFetchDedupe {
 
 		const key = this._getKey(request);
 		if (this._inflightRequests[key]) {
-			return this._clone(this._inflightRequests[key]);
+			this._inflightRequests[key].count++;
+			return this._inflightRequests[key].action;
 		}
 
 		if (!next) {
@@ -27,13 +28,17 @@ export class D2LFetchDedupe {
 
 		const result = next(request);
 		if (result && result instanceof Promise) {
-			this._inflightRequests[key] = result;
-			result.then(() => {
+			this._inflightRequests[key] = { count: 1 };
+			this._inflightRequests[key].action = result.then(function(response) {
+				const usedMultiple = this._inflightRequests[key].count !== 1;
 				delete this._inflightRequests[key];
-			});
+				return this._clone(response, usedMultiple);
+			}.bind(this));
+
+			return this._inflightRequests[key].action;
 		}
 
-		return this._clone(result);
+		return result;
 	}
 
 	_getKey(request) {
@@ -44,11 +49,33 @@ export class D2LFetchDedupe {
 		return request.url;
 	}
 
-	_clone(result) {
-		return result.then(function(response) {
-			if (response instanceof Response) {
-				return response.clone();
-			}
-		});
+	_clone(response, usedMultiple) {
+		if (!usedMultiple || response instanceof Response === false) {
+			// no calls matched, don't need to clone
+			return Promise.resolve(response);
+		}
+
+		// body can only be read once, override the functions
+		// so that they return the output of the original call
+		return response.text()
+			.then(function(textData) {
+				response.json = function() {
+					return Promise.resolve(JSON.parse(textData));
+				};
+				response.text = function() {
+					return Promise.resolve(textData);
+				};
+				response.arrayBuffer = function() {
+					return Promise.reject(new Error('dedupe middleware cannot be used with arrayBuffer response bodies'));
+				};
+				response.blob = function() {
+					return Promise.reject(new Error('dedupe middleware cannot be used with blob response bodies'));
+				};
+				response.formData = function() {
+					return Promise.reject(new Error('dedupe middleware cannot be used with formData response bodies'));
+				};
+
+				return response;
+			});
 	}
 }
