@@ -173,19 +173,24 @@ describe('d2l-fetch-dedupe', function() {
 	});
 
 	it('should allow calls to formData() for unmatched responses', function(done) {
-		var data = new FormData();
-		data.append('dataprop', 'sweet sweet data');
-		var response = new Response(data, { status: 200, statusText: 'super!' });
-		var firstRequest = getRequest('/path/to/data');
-		var firstNext = sandbox.stub().returns(Promise.resolve(response));
-		window.d2lfetch.dedupe(firstRequest, firstNext)
-			.then(function(response) {
-				response.formData().then(function(formData) {
-					expect(formData instanceof FormData).to.be.true;
-					expect(formData.get('dataprop')).to.equal('sweet sweet data');
-					done();
+		// Edge doesn't support FormData so ignore this test on Edge
+		if ((new Response()).formData === undefined) {
+			done();
+		} else {
+			var data = new FormData();
+			data.append('dataprop', 'sweet sweet data');
+			var response = new Response(data, { status: 200, statusText: 'super!' });
+			var firstRequest = getRequest('/path/to/data');
+			var firstNext = sandbox.stub().returns(Promise.resolve(response));
+			window.d2lfetch.dedupe(firstRequest, firstNext)
+				.then(function(response) {
+					response.formData().then(function(formData) {
+						expect(formData instanceof FormData).to.be.true;
+						expect(formData.get('dataprop')).to.equal('sweet sweet data');
+						done();
+					});
 				});
-			});
+		}
 	});
 
 	it('should reject calls to formData() for matched responses', function(done) {
