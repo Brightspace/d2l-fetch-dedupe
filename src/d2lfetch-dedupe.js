@@ -57,6 +57,11 @@ export class D2LFetchDedupe {
 
 		// body can only be read once, override the functions
 		// so that they return the output of the original call
+
+		// NOTE: This is pretty hacky but unfortunately the native
+		// 	     response.clone() method can lead to sporadic
+		//		 "Cannot clone a disturbed response" errors in Safari.
+		//		 See https://github.com/Brightspace/d2l-fetch-dedupe/pull/13 for more details.
 		return response.text()
 			.then(function(textData) {
 				response.json = function() {
