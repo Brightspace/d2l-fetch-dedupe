@@ -91,7 +91,7 @@ describe('d2l-fetch-dedupe', function() {
 			});
 	});
 
-	it('matched responses should be cloned so that the body can be requested by each caller', function(done) {
+	it('matched responses should be have their bodies cloned so that the body can be requested by each caller', function(done) {
 		var matchedResponse = new Response('{ dataprop: \'sweet sweet data\' }', { status: 200, statusText: 'super!' });
 		var firstRequest = getRequest('/path/to/data');
 		var firstNext = sandbox.stub().returns(Promise.resolve(matchedResponse));
@@ -105,10 +105,11 @@ describe('d2l-fetch-dedupe', function() {
 			window.d2lfetch.dedupe(secondRequest, secondNext),
 			window.d2lfetch.dedupe(thirdRequest, thirdNext)
 		]).then(function(responses) {
-			// expect different promises
-			expect(responses[0]).not.to.equal(responses[1]);
-			expect(responses[1]).not.to.equal(responses[2]);
-			expect(responses[0]).not.to.equal(responses[2]);
+			// expect the same promises
+			expect(responses[0]).to.equal(responses[1]);
+			expect(responses[1]).to.equal(responses[2]);
+			// body should be used at this point, technically
+			expect(responses[0].bodyUsed).to.equal(true);
 			Promise.all([
 				responses[0].json,
 				responses[1].json,
@@ -118,6 +119,126 @@ describe('d2l-fetch-dedupe', function() {
 				expect(bodies[0]).to.equal(bodies[1]);
 				expect(bodies[1]).to.equal(bodies[2]);
 				expect(bodies[0]).to.equal(bodies[2]);
+				done();
+			});
+		});
+	});
+
+	it('unmatched responses should not have their bodies cloned and the body should be read at the time the caller requests it', function(done) {
+		var response = new Response('{ dataprop: \'sweet sweet data\' }', { status: 200, statusText: 'super!' });
+		var firstRequest = getRequest('/path/to/data');
+		var firstNext = sandbox.stub().returns(Promise.resolve(response));
+		window.d2lfetch.dedupe(firstRequest, firstNext)
+			.then(function(response) {
+				expect(firstNext).to.be.called;
+				expect(response.bodyUsed).to.equal(false);
+				response.text().then(function() {
+					expect(response.bodyUsed).to.equal(true);
+					done();
+				});
+			});
+	});
+
+	it('should allow calls to blob() for unmatched responses', function(done) {
+		var data = JSON.stringify({ dataprop: 'sweet sweet data' });
+		var response = new Response(data, { status: 200, statusText: 'super!' });
+		var firstRequest = getRequest('/path/to/data');
+		var firstNext = sandbox.stub().returns(Promise.resolve(response));
+		window.d2lfetch.dedupe(firstRequest, firstNext)
+			.then(function(response) {
+				response.blob().then(function(blobData) {
+					expect(blobData).to.be.defined;
+					expect(blobData.size).to.equal(data.length);
+					done();
+				});
+			});
+	});
+
+	it('should reject calls to blob() for matched responses', function(done) {
+		var matchedResponse = new Response('{ dataprop: \'sweet sweet data\' }', { status: 200, statusText: 'super!' });
+		var firstRequest = getRequest('/path/to/data');
+		var firstNext = sandbox.stub().returns(Promise.resolve(matchedResponse));
+		var secondRequest = getRequest('/path/to/data');
+		var secondNext = sandbox.stub().returns(Promise.reject);
+
+		Promise.all([
+			window.d2lfetch.dedupe(firstRequest, firstNext),
+			window.d2lfetch.dedupe(secondRequest, secondNext)
+		]).then(function(responses) {
+			responses[0].blob().catch(function(err) {
+				expect(err.message).to.equal('dedupe middleware cannot be used with blob response bodies');
+				done();
+			});
+		});
+	});
+
+	it('should allow calls to formData() for unmatched responses', function(done) {
+		// Edge doesn't support FormData so ignore this test on Edge
+		if ((new Response()).formData === undefined) {
+			done();
+		} else {
+			var data = new FormData();
+			data.append('dataprop', 'sweet sweet data');
+			var response = new Response(data, { status: 200, statusText: 'super!' });
+			var firstRequest = getRequest('/path/to/data');
+			var firstNext = sandbox.stub().returns(Promise.resolve(response));
+			window.d2lfetch.dedupe(firstRequest, firstNext)
+				.then(function(response) {
+					response.formData().then(function(formData) {
+						expect(formData instanceof FormData).to.be.true;
+						expect(formData.get('dataprop')).to.equal('sweet sweet data');
+						done();
+					});
+				});
+		}
+	});
+
+	it('should reject calls to formData() for matched responses', function(done) {
+		var matchedResponse = new Response('{ dataprop: \'sweet sweet data\' }', { status: 200, statusText: 'super!' });
+		var firstRequest = getRequest('/path/to/data');
+		var firstNext = sandbox.stub().returns(Promise.resolve(matchedResponse));
+		var secondRequest = getRequest('/path/to/data');
+		var secondNext = sandbox.stub().returns(Promise.reject);
+
+		Promise.all([
+			window.d2lfetch.dedupe(firstRequest, firstNext),
+			window.d2lfetch.dedupe(secondRequest, secondNext)
+		]).then(function(responses) {
+			responses[0].formData().catch(function(err) {
+				expect(err.message).to.equal('dedupe middleware cannot be used with formData response bodies');
+				done();
+			});
+		});
+	});
+
+	it('should allow calls to arrayBuffer() for unmatched responses', function(done) {
+		var data = window.btoa('sweet sweet data');
+		var response = new Response(data, { status: 200, statusText: 'super!' });
+		var firstRequest = getRequest('/path/to/data');
+		var firstNext = sandbox.stub().returns(Promise.resolve(response));
+		window.d2lfetch.dedupe(firstRequest, firstNext)
+			.then(function(response) {
+				response.arrayBuffer().then(function(arrayBufferData) {
+					expect(arrayBufferData instanceof ArrayBuffer).to.be.true;
+					expect(window.atob(String.fromCharCode.apply(String, new Uint8Array(arrayBufferData)))).to.equal('sweet sweet data');
+					done();
+				});
+			});
+	});
+
+	it('should reject calls to arrayBuffer() for matched responses', function(done) {
+		var matchedResponse = new Response('{ dataprop: \'sweet sweet data\' }', { status: 200, statusText: 'super!' });
+		var firstRequest = getRequest('/path/to/data');
+		var firstNext = sandbox.stub().returns(Promise.resolve(matchedResponse));
+		var secondRequest = getRequest('/path/to/data');
+		var secondNext = sandbox.stub().returns(Promise.reject);
+
+		Promise.all([
+			window.d2lfetch.dedupe(firstRequest, firstNext),
+			window.d2lfetch.dedupe(secondRequest, secondNext)
+		]).then(function(responses) {
+			responses[0].arrayBuffer().catch(function(err) {
+				expect(err.message).to.equal('dedupe middleware cannot be used with arrayBuffer response bodies');
 				done();
 			});
 		});
