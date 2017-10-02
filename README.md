@@ -22,7 +22,19 @@ Reference the script in your html after your reference to `d2l-fetch` (see [here
 <script src="../dist/d2lfetch-dedupe.js"></script>
 ```
 
-This will add the `dedupe` middleware function to the `d2lfetch` object.
+This will add the `dedupe` middleware function to the `d2lfetch` object. Alternatively, you can install `d2l-fetch-dedupe` via bower:
+
+```sh
+bower install Brightspace/d2l-fetch-dedupe
+```
+
+and reference it as you would any other package:
+
+```html
+<link rel="import" href="../d2l-fetch-dedupe/d2l-fetch-dedupe.html">
+```
+
+Note that this version of `d2l-fetch-dedupe` is not transpiled - doing so is left up to the consumer.
 
 ### Dedupe
 

@@ -4,10 +4,9 @@ script:
 - npm run build
 - npm run test:lint
 - wct --skip-plugin local
-- 'if [ "$TRAVIS_BRANCH" == "master" ]; then frauci-update-version && export TRAVIS_TAG=$(frauci-get-version) && npm run build && npm run publish-release; fi'
+- ./update.sh
 env:
   global:
-  - REPO_NAME=d2l-fetch-dedupe
   # SAUCE_USERNAME
   - secure: cIU1AnDjf1cOufp9k6sdtECS6QRA/MOU6z3bm5S7X/hXxZqhNu3ZpIbYJFWuwFoHk7Uyq4MJMY8ra5ZUuwjAMM7YZzj7ug7C3GvxXSoF9T6Uzsf1DPHHLk5nYxGTH5cpkMgeJrdeXqzjTQlcnV7ynC7iKJCMJoHkIXCVPYKZBwPZNCnZVuRZp/lWTZTJKE6MoSek3CCLQzpN1hzyu8kpPjpxbnFqdS5q9dCoyHPBvCJzq4KC+el69/On1meqMVt+fGU0+FhuV8d1y0/5HzUhZvsBgRq+2t88leSxoM/DejCtgxIzzjBv4683cDgwDoZ2RwZSb8BS9zopRg4ATgT16Qmc3PQQ3n7o34ZgTiO73tUoCGr4L4nQQ6B2/p9h3voP63aOyvt953VuzfYDTPeEQ73nfx7iehYfNybXzgtOhjrC6G6AUL9OW5YeaNcSOfplMyqvNlxvUXQIUeZD1V+lsQLo3LLLEIhjxyy6uP1U0V8uW847qDRYdYFp4nMXWXk6sz7NtcACyzA3sBVorTNznVRyPqeIso2jyZ27pkAhHImvpO7cGFdDzwnzx8LZZyvUlKn2o/IWqjlUDwdJj8AoPCXUs7IceulVFvqDxxheN8okh+nYnG6g4MeLYlvoonNIz4wzqTsz398pejGn6A6RcY7SRkudU6RBhUMAndbm2/o=
   # CDN_SECRET
