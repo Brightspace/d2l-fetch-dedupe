@@ -1,6 +1,5 @@
 {
   "name": "d2l-fetch-dedupe",
-  "version": "0.10.0",
   "description": "Provides a middleware function for de-duplicating fetch requests for the same url+auth combination",
   "main": "index.js",
   "author": "D2L Corporation",
@@ -38,7 +37,6 @@
     "eslint": "^3.19.0",
     "eslint-config-brightspace": "^0.2.4",
     "eslint-plugin-html": "^2.0.1",
-    "frau-ci": "^1.33.0",
     "frau-publisher": "^2.6.2",
     "peanut-gallery": "^1.2.0",
     "web-component-tester": "^6.0.0",
