@@ -11,7 +11,7 @@
     "test:lint": "eslint src/ test/ --ext .js",
     "test:no-lint": "cross-env LAUNCHPAD_BROWSERS=firefox wct --skip-plugin sauce -p",
     "test": "npm run test:lint && npm run test:no-lint",
-    "publish-location": "node publishLocation | peanut-gallery -t $GITHUB_RELEASE_TOKEN -p",
+    "publish-location": "node publishLocation",
     "prepublish-release": "npm run build",
     "publish-release": "frau-publisher && npm run publish-location"
   },
@@ -38,7 +38,6 @@
     "eslint-config-brightspace": "^0.2.4",
     "eslint-plugin-html": "^2.0.1",
     "frau-publisher": "^2.6.2",
-    "peanut-gallery": "^1.2.0",
     "web-component-tester": "^6.0.0",
     "webpack": "^2.4.1"
   },
