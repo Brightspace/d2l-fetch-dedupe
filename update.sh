@@ -24,10 +24,13 @@ majorRegex='\[increment major\]'
 patchRegex='\[increment patch\]'
 if [[ $lastLogMessage =~ $majorRegex ]]; then
 	majorVersion=$((majorVersion + 1))
+	minorVersion=0
+	patchVersion=0
 elif [[ $lastLogMessage =~ $patchRegex ]]; then
 	patchVersion=$((patchVersion + 1))
 else
 	minorVersion=$((minorVersion + 1))
+	patchVersion=0
 fi
 
 newVersion="${majorVersion}.${minorVersion}.${patchVersion}"
