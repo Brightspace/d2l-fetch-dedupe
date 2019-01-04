@@ -2,3 +2,5 @@
 
 # Ignore built files except build/index.js
 **/dist/*
+test/acceptance/*
+reports

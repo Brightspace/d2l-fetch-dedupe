@@ -1,30 +1,4 @@
-import commonjs from 'rollup-plugin-commonjs';
-import json from 'rollup-plugin-json';
-import resolve from 'rollup-plugin-node-resolve';
-import { terser } from 'rollup-plugin-terser';
-import babel from 'rollup-plugin-babel';
+import { config } from './rollup.common.config.js';
 
-const config = (name, input, output) => ({
-	input,
-	plugins: [
-		resolve({
-			browser: true
-		}),
-		commonjs(),
-		json(),
-		babel({
-			presets: ['@babel/preset-env']
-		}),
-		terser()
-	],
-	output: {
-		file: `${output}`,
-		format: 'umd',
-		name,
-		sourcemap: false
-	}
-});
-
-export default [
-	config('d2lfetch.dedupe', './src/index.js', './dist/d2lfetch-dedupe.js')
-];
+export default
+	config('d2lfetch.dedupe', './src/index.js', './es6/d2lfetch-dedupe.js', './dist/d2lfetch-dedupe.js');

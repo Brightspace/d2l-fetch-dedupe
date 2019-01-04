@@ -7,7 +7,7 @@ if ! [ "$TRAVIS_BRANCH" == "master" ] || ! [ "$TRAVIS_PULL_REQUEST" == "false" ]
 fi
 
 lastVersion=$(git describe --abbrev=0)
-versionRegex='^([0-9]+)\.([0-9]+)\.([0-9]+)$'
+versionRegex='^v?([0-9]+)\.([0-9]+)\.([0-9]+)$'
 if ! [[ $lastVersion =~ $versionRegex ]]; then
 	echo $lastVersion "is not a valid semver string"
 	exit 1
@@ -36,7 +36,7 @@ fi
 newVersion="${majorVersion}.${minorVersion}.${patchVersion}"
 
 # Add the upstream using GITHUB_RELEASE_TOKEN
-git remote add upstream "https://${GITHUB_RELEASE_TOKEN}@github.com/Brightspace/d2l-fetch-dedupe.git"
+git remote add upstream "https://${GITHUB_RELEASE_TOKEN}@github.com/Brightspace/d2l-fetch-auth.git"
 
 # Pull the merge commit
 git pull upstream master
@@ -46,19 +46,12 @@ git checkout upstream/master
 git config --global user.email "travis@travis-ci.com"
 git config --global user.name "Travis CI"
 
-echo "Updating from ${lastVersion} to ${newVersion}"
-echo "<!-- CHANGES TO THIS FILE WILL BE LOST - IT IS AUTOMATICALLY GENERATED WHEN d2l-fetch-dedupe IS RELEASED -->" > d2l-fetch-dedupe.html
-echo "<script src=\"https://s.brightspace.com/lib/d2lfetch-dedupe/"$newVersion"/d2lfetch-dedupe.js\"></script>" >> d2l-fetch-dedupe.html
-
-# Add the updated d2l-fetch-dedupe.html, and add a new tag to create the release
-git add .
-git commit -m "[skip ci] Update to ${newVersion}"
-git tag -a ${newVersion} -m "${newVersion} - ${lastLogMessageShort}"
+npm version ${newVersion} -m "[skip ci] Update to %s"
 
 git status
 
 git push upstream HEAD:master --tags
 
 # Publish the release via frau-publisher
-export TRAVIS_TAG=$newVersion
-npm run publish-release
+# export TRAVIS_TAG=$newVersion
+# npm run publish-release
