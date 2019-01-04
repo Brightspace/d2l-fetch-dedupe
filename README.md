@@ -17,33 +17,25 @@ npm run build
 
 Reference the script in your html after your reference to `d2l-fetch` (see [here](https://github.com/Brightspace/d2l-fetch) for details on d2l-fetch):
 
-```html
-<script src="https://s.brightspace.com/lib/d2lfetch/1.0.0/d2lfetch.js"></script>
-<script src="../dist/d2lfetch-dedupe.js"></script>
-```
-
-This will add the `dedupe` middleware function to the `d2lfetch` object. Alternatively, you can install `d2l-fetch-dedupe` via bower:
-
+Install `d2l-fetch-dedupe` via npm:
 ```sh
-bower install Brightspace/d2l-fetch-dedupe
+npm install d2l-fetch-dedupe
 ```
 
-and reference it as you would any other package:
-
-```html
-<link rel="import" href="../d2l-fetch-dedupe/d2l-fetch-dedupe.html">
+```javascript
+import dedupe from 'd2l-fetch-dedupe';
 ```
 
-Note that this version of `d2l-fetch-dedupe` is not transpiled - doing so is left up to the consumer.
+This will import the `auth` middleware
 
 ### Dedupe
 
 Install the `dedupe` middleware to d2lfetch via the `use` function and then start making your requests.
 
 ```js
-window.d2lfetch.use({name: 'dedupe' fn: window.d2lfetch.dedupe});
+d2lfetch.use({name: 'dedupe' fn: dedupe});
 
-window.d2lfetch.fetch(new Request('http://example.com/api/someentity/'))
+d2lfetch.fetch(new Request('http://example.com/api/someentity/'))
 	.then(function(response) {
 		// do something with the response
 	});
