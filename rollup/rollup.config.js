@@ -21,7 +21,7 @@ const config = (name, input, output) => ({
 		file: `${output}`,
 		format: 'umd',
 		name,
-		sourcemap: true
+		sourcemap: false
 	}
 });
 
