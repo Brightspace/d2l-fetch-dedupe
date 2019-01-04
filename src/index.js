@@ -4,4 +4,4 @@ const fetchDedupe = new D2LFetchDedupe();
 
 export default function dedupe(request, next) {
 	return fetchDedupe.dedupe(request, next);
-};
+}
