@@ -5,12 +5,14 @@
   "author": "D2L Corporation",
   "license": "Apache-2.0",
   "scripts": {
-    "postinstall": "bower install",
-    "build": "webpack -p",
+    "postinstall": "polymer install",
+    "build": "rollup -c rollup/rollup.config.js",
     "pretest": "npm run build",
-    "test:lint": "eslint src/ test/ --ext .js",
-    "test:no-lint": "cross-env LAUNCHPAD_BROWSERS=firefox wct --skip-plugin sauce -p",
-    "test": "npm run test:lint && npm run test:no-lint",
+    "test:lint:js": "eslint src/ test/ --ext .js",
+    "test:lint": "npm run test:lint:js",
+    "test": "npm run test:lint && npm run test:polymer:local",
+    "test:polymer:local": "cross-env LAUNCHPAD_BROWSERS=firefox polymer test --skip-plugin sauce",
+    "test:polymer:sauce": "polymer test --skip-plugin local",
     "publish-location": "node publishLocation",
     "prepublish-release": "npm run build",
     "publish-release": "frau-publisher && npm run publish-location"
@@ -29,17 +31,20 @@
     }
   },
   "devDependencies": {
-    "babel-core": "^6.24.1",
-    "babel-loader": "^7.0.0",
-    "babel-preset-env": "^1.4.0",
-    "bower": "^1.8.0",
+    "@babel/core": "^7.1.6",
+    "@babel/preset-env": "^7.1.6",
     "cross-env": "^5.0.0",
     "eslint": "^3.19.0",
     "eslint-config-brightspace": "^0.2.4",
     "eslint-plugin-html": "^2.0.1",
     "frau-publisher": "^2.6.2",
-    "web-component-tester": "^6.0.0",
-    "webpack": "^2.4.1"
+    "polymer-cli": "^1.9.0",
+    "rollup": "^0.67.1",
+    "rollup-plugin-babel": "^4.0.3",
+    "rollup-plugin-commonjs": "^9.2.0",
+    "rollup-plugin-json": "^3.1.0",
+    "rollup-plugin-node-resolve": "^3.4.0",
+    "rollup-plugin-terser": "^3.0.0"
   },
   "dependencies": {}
 }
