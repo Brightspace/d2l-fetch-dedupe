@@ -36,7 +36,7 @@ fi
 newVersion="${majorVersion}.${minorVersion}.${patchVersion}"
 
 # Add the upstream using GITHUB_RELEASE_TOKEN
-git remote add upstream "https://${GITHUB_RELEASE_TOKEN}@github.com/Brightspace/d2l-fetch-auth.git"
+git remote add upstream "https://${GITHUB_RELEASE_TOKEN}@github.com/Brightspace/d2l-fetch-dedupe.git"
 
 # Pull the merge commit
 git pull upstream master
