@@ -29,11 +29,16 @@ export class D2LFetchDedupe {
 		const result = next(request);
 		if (result && result instanceof Promise) {
 			this._inflightRequests[key] = { count: 1 };
-			this._inflightRequests[key].action = result.then(function(response) {
-				const usedMultiple = this._inflightRequests[key].count !== 1;
-				delete this._inflightRequests[key];
-				return this._clone(response, usedMultiple);
-			}.bind(this));
+			this._inflightRequests[key].action = result
+				.then(function(response) {
+					const usedMultiple = this._inflightRequests[key].count !== 1;
+					delete this._inflightRequests[key];
+					return this._clone(response, usedMultiple);
+				}.bind(this))
+				.catch(function(err) {
+					delete this._inflightRequests[key];
+					return Promise.reject(err);
+				}.bind(this));
 
 			return this._inflightRequests[key].action;
 		}

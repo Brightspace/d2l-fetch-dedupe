@@ -320,6 +320,22 @@ describe('d2l-fetch-dedupe', function() {
 			});
 	});
 
+	it('should release request promises that were rejected', function(done) {
+		var firstRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' });
+		var firstNext = sandbox.stub().returns(Promise.reject(new Error()));
+		var secondRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' });
+		var secondNext = sandbox.stub().returns(Promise.resolve());
+
+		dedupe(firstRequest, firstNext)
+			.catch(function() {
+				return dedupe(secondRequest, secondNext);
+			})
+			.then(function() {
+				expect(secondNext).to.be.called;
+				done();
+			});
+	});
+
 	requestMethods.forEach(function(method) {
 		it('should not match two requests if the URLs are the same, the authorization header is the same, but they are not GET, HEAD, or OPTIONS requests', function() {
 			var firstRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' }, method);
