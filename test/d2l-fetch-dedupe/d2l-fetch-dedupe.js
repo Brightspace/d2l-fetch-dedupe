@@ -19,6 +19,12 @@ var requestMethods = [
 	'PUT'
 ];
 
+function createSuccessfulResponse() {
+	return Promise.resolve(new Response('foo', {
+		status: 200
+	}));
+}
+
 describe('d2l-fetch-dedupe', function() {
 
 	var sandbox;
@@ -48,7 +54,7 @@ describe('d2l-fetch-dedupe', function() {
 	});
 
 	it('should call the next function if provided', function() {
-		var next = sandbox.stub().returns(Promise.resolve());
+		var next = sandbox.stub().returns(createSuccessfulResponse());
 		return dedupe(getRequest('/path/to/data'), next)
 			.then(function() {
 				expect(next).to.be.called;
@@ -57,14 +63,14 @@ describe('d2l-fetch-dedupe', function() {
 
 	it('should not call the next function if a matching request exists in flight', function() {
 		var firstRequest = getRequest('/path/to/data');
-		var firstNext = sandbox.stub().returns(Promise.resolve());
+		var firstNext = sandbox.stub().returns(createSuccessfulResponse());
 		dedupe(firstRequest, firstNext)
 			.then(function() {
 				expect(firstNext).to.be.called;
 			});
 
 		var secondRequest = getRequest('/path/to/data');
-		var secondNext = sandbox.stub().returns(Promise.resolve());
+		var secondNext = sandbox.stub().returns(createSuccessfulResponse());
 		return dedupe(secondRequest, secondNext)
 			.then(function() {
 				expect(secondNext).not.to.be.called;
@@ -73,12 +79,12 @@ describe('d2l-fetch-dedupe', function() {
 
 	it('should call the next function if a matching request has completed', function(done) {
 		var firstRequest = getRequest('/path/to/data');
-		var firstNext = sandbox.stub().returns(Promise.resolve());
+		var firstNext = sandbox.stub().returns(createSuccessfulResponse());
 		dedupe(firstRequest, firstNext)
 			.then(function() {
 				expect(firstNext).to.be.called;
 				var secondRequest = getRequest('/path/to/data');
-				var secondNext = sandbox.stub().returns(Promise.resolve());
+				var secondNext = sandbox.stub().returns(createSuccessfulResponse());
 				dedupe(secondRequest, secondNext)
 				.then(function() {
 					expect(secondNext).to.be.called;
@@ -242,14 +248,14 @@ describe('d2l-fetch-dedupe', function() {
 
 	it('should match two requests if the URLs are the same and they have no Authorization header', function() {
 		var firstRequest = getRequest('/path/to/data');
-		var firstNext = sandbox.stub().returns(Promise.resolve());
+		var firstNext = sandbox.stub().returns(createSuccessfulResponse());
 		dedupe(firstRequest, firstNext)
 			.then(function() {
 				expect(firstNext).to.be.called;
 			});
 
 		var secondRequest = getRequest('/path/to/data');
-		var secondNext = sandbox.stub().returns(Promise.resolve());
+		var secondNext = sandbox.stub().returns(createSuccessfulResponse());
 		return dedupe(secondRequest, secondNext)
 			.then(function() {
 				expect(secondNext).not.to.be.called;
@@ -258,14 +264,14 @@ describe('d2l-fetch-dedupe', function() {
 
 	it('should match two requests if the URLs are the same and they have the same Authorization header', function() {
 		var firstRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' });
-		var firstNext = sandbox.stub().returns(Promise.resolve());
+		var firstNext = sandbox.stub().returns(createSuccessfulResponse());
 		dedupe(firstRequest, firstNext)
 			.then(function() {
 				expect(firstNext).to.be.called;
 			});
 
 		var secondRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' });
-		var secondNext = sandbox.stub().returns(Promise.resolve());
+		var secondNext = sandbox.stub().returns(createSuccessfulResponse());
 		return dedupe(secondRequest, secondNext)
 			.then(function() {
 				expect(secondNext).not.to.be.called;
@@ -274,14 +280,14 @@ describe('d2l-fetch-dedupe', function() {
 
 	it('should not match two requests if the URLs are the same and they have different Authorization headers', function() {
 		var firstRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' });
-		var firstNext = sandbox.stub().returns(Promise.resolve());
+		var firstNext = sandbox.stub().returns(createSuccessfulResponse());
 		dedupe(firstRequest, firstNext)
 			.then(function() {
 				expect(firstNext).to.be.called;
 			});
 
 		var secondRequest = getRequest('/path/to/data', { Authorization: 'knock-knock' });
-		var secondNext = sandbox.stub().returns(Promise.resolve());
+		var secondNext = sandbox.stub().returns(createSuccessfulResponse());
 		return dedupe(secondRequest, secondNext)
 			.then(function() {
 				expect(secondNext).to.be.called;
@@ -290,14 +296,14 @@ describe('d2l-fetch-dedupe', function() {
 
 	it('should not match two requests if the URLs are different and they have no Authorization header', function() {
 		var firstRequest = getRequest('/path/to/data');
-		var firstNext = sandbox.stub().returns(Promise.resolve());
+		var firstNext = sandbox.stub().returns(createSuccessfulResponse());
 		dedupe(firstRequest, firstNext)
 			.then(function() {
 				expect(firstNext).to.be.called;
 			});
 
 		var secondRequest = getRequest('/different/path/to/data');
-		var secondNext = sandbox.stub().returns(Promise.resolve());
+		var secondNext = sandbox.stub().returns(createSuccessfulResponse());
 		return dedupe(secondRequest, secondNext)
 			.then(function() {
 				expect(secondNext).to.be.called;
@@ -306,14 +312,14 @@ describe('d2l-fetch-dedupe', function() {
 
 	it('should not match two requests if the URLs are different and they have the same Authorization header', function() {
 		var firstRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' });
-		var firstNext = sandbox.stub().returns(Promise.resolve());
+		var firstNext = sandbox.stub().returns(createSuccessfulResponse());
 		dedupe(firstRequest, firstNext)
 			.then(function() {
 				expect(firstNext).to.be.called;
 			});
 
 		var secondRequest = getRequest('/different/path/to/data', { Authorization: 'let-me-in' });
-		var secondNext = sandbox.stub().returns(Promise.resolve());
+		var secondNext = sandbox.stub().returns(createSuccessfulResponse());
 		return dedupe(secondRequest, secondNext)
 			.then(function() {
 				expect(secondNext).to.be.called;
@@ -324,7 +330,7 @@ describe('d2l-fetch-dedupe', function() {
 		var firstRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' });
 		var firstNext = sandbox.stub().returns(Promise.reject(new Error()));
 		var secondRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' });
-		var secondNext = sandbox.stub().returns(Promise.resolve());
+		var secondNext = sandbox.stub().returns(createSuccessfulResponse());
 
 		dedupe(firstRequest, firstNext)
 			.catch(function() {
@@ -339,14 +345,14 @@ describe('d2l-fetch-dedupe', function() {
 	requestMethods.forEach(function(method) {
 		it('should not match two requests if the URLs are the same, the authorization header is the same, but they are not GET, HEAD, or OPTIONS requests', function() {
 			var firstRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' }, method);
-			var firstNext = sandbox.stub().returns(Promise.resolve());
+			var firstNext = sandbox.stub().returns(createSuccessfulResponse());
 			dedupe(firstRequest, firstNext)
 				.then(function() {
 					expect(firstNext).to.be.called;
 				});
 
 			var secondRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' }, method);
-			var secondNext = sandbox.stub().returns(Promise.resolve());
+			var secondNext = sandbox.stub().returns(createSuccessfulResponse());
 			return dedupe(secondRequest, secondNext)
 				.then(function() {
 					if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') {

@@ -1,9 +1,30 @@
+/**
+ * @typedef {(request: Request, next?: MiddlewareFunc) => Promise<Response>} MiddlewareFunc
+ *
+ * @typedef {object} InflightSourceRequest
+ * @prop {Request} request
+ * @prop {{resolve: Function, reject: Function}} resolvers
+ *
+ * @typedef {object} InflightRequestEntry
+ * @prop {Request} request
+ * @prop {AbortController} [abortController]
+ * @prop {Record<string, InflightSourceRequest>} sourceRequests
+ *
+ * @typedef {Record<string, InflightRequestEntry>} InflightRequestInfo
+ */
+
 export class D2LFetchDedupe {
 
 	constructor() {
-		this._inflightRequests = this._inflightRequests || [];
+		this._nextReqId = 0;
+		/** @type {InflightRequestInfo} */
+		this._inflightRequests = this._inflightRequests || {};
 	}
 
+	/**
+	 * @param {Request} request
+	 * @param {MiddlewareFunc} next
+	 */
 	dedupe(request, next) {
 		if (false === request instanceof Request) {
 			return Promise.reject(new TypeError('Invalid request argument supplied; must be a valid window.Request object.'));
@@ -17,33 +38,102 @@ export class D2LFetchDedupe {
 		}
 
 		const key = this._getKey(request);
-		if (this._inflightRequests[key]) {
-			this._inflightRequests[key].count++;
-			return this._inflightRequests[key].action;
+		const reqId = this._nextReqId++;
+
+		let newRequest = false;
+
+		// if this is the first request for this key,
+		// clone the source request and initiate a fetch
+		if (!this._inflightRequests[key]) {
+			const requestCopy = new Request(request.url, {
+				method: request.method,
+				headers: new Headers(request.headers),
+				mode: request.mode,
+				cache: request.cache,
+				credentials: request.credentials
+			});
+
+			this._inflightRequests[key] = {
+				request: requestCopy,
+				sourceRequests: {}
+			};
+
+			newRequest = true;
+		}
+
+		const dedupedRequest = new Promise((resolve, reject) => {
+			this._inflightRequests[key].sourceRequests[reqId] = {
+				request,
+				resolvers: {
+					resolve,
+					reject
+				}
+			};
+
+			// Aborting a request will reject that request and remove it from the pending
+			// request list, but unless it's the last source request, other requests
+			// should continue unless they're specifically aborted also.
+			if (request.signal && typeof request.signal.addEventListener === 'function') {
+				request.signal.addEventListener('abort', () => {
+					// if this is the last upstream request, abort the downstream request
+					if (Object.keys(this._inflightRequests[key].sourceRequests).length === 1) {
+						const abortController = this._inflightRequests[key].request.abortController;
+
+						if (abortController && typeof abortController.abort === 'function') {
+							abortController.abort();
+						}
+					}
+
+					delete this._inflightRequests[key].sourceRequests[reqId];
+
+					const abortError = new DOMException('Request was aborted.', 'AbortError');
+
+					reject(abortError);
+				});
+			}
+		});
+
+		/**
+		 * if a request for this key exists, create a new entry and
+		 * return the deduped request promise
+		 */
+		if (!newRequest) {
+			return dedupedRequest;
 		}
 
 		if (!next) {
 			return Promise.resolve(request);
 		}
 
-		const result = next(request);
-		if (result && result instanceof Promise) {
-			this._inflightRequests[key] = { count: 1 };
-			this._inflightRequests[key].action = result
-				.then(function(response) {
-					const usedMultiple = this._inflightRequests[key].count !== 1;
-					delete this._inflightRequests[key];
-					return this._clone(response, usedMultiple);
-				}.bind(this))
-				.catch(function(err) {
-					delete this._inflightRequests[key];
-					return Promise.reject(err);
-				}.bind(this));
+		const result = next(this._inflightRequests[key].request);
 
-			return this._inflightRequests[key].action;
+		if (result && result instanceof Promise) {
+			this._inflightRequests[key].action = result
+				.then((response) => {
+					const res = Object.keys(this._inflightRequests[key].sourceRequests).length > 1
+						? this._clone(response)
+						: response;
+
+					for (const sourceRequest of Object.values(this._inflightRequests[key].sourceRequests)) {
+						sourceRequest.resolvers.resolve(res);
+					}
+
+					delete this._inflightRequests[key];
+				})
+				.catch((err) => {
+					if (!this._inflightRequests[key]) {
+						return;
+					}
+
+					for (const sourceRequest of Object.values(this._inflightRequests[key].sourceRequests)) {
+						sourceRequest.resolvers.reject(err);
+					}
+
+					delete this._inflightRequests[key];
+				});
 		}
 
-		return result;
+		return dedupedRequest;
 	}
 
 	_getKey(request) {
@@ -54,12 +144,7 @@ export class D2LFetchDedupe {
 		return request.url;
 	}
 
-	_clone(response, usedMultiple) {
-		if (!usedMultiple || response instanceof Response === false) {
-			// no calls matched, don't need to clone
-			return Promise.resolve(response);
-		}
-
+	_clone(response) {
 		// body can only be read once, override the functions
 		// so that they return the output of the original call
 
