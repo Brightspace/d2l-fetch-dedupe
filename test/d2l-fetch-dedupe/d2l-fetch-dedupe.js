@@ -29,9 +29,13 @@ describe('d2l-fetch-dedupe', function() {
 
 	var sandbox;
 
-	function getRequest(path, headers, method) {
+	function getRequest(path, headers, method, abortController) {
 		method = method || 'GET';
-		return new Request(path, { method: method, headers: headers });
+		return new Request(path, {
+			method: method,
+			headers: headers,
+			signal: abortController && abortController.signal
+		});
 	}
 
 	beforeEach(function() {
@@ -324,6 +328,143 @@ describe('d2l-fetch-dedupe', function() {
 			.then(function() {
 				expect(secondNext).to.be.called;
 			});
+	});
+
+	it('should abort downstream request if only remaining upstream request was aborted', function(done) {
+		var abortController = new AbortController();
+		var doneConditions = {
+			downstreamReqAborted: false,
+			upstreamReqAborted: false
+		};
+
+		var updateDoneConditions = (newConds) => {
+			doneConditions = Object.assign(doneConditions, newConds);
+
+			if (Object.values(doneConditions).every(c => !!c)) {
+				done();
+			}
+		};
+
+		var firstRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' }, 'GET', abortController);
+		var firstNext = req => {
+			if (req.signal.aborted) {
+				updateDoneConditions({ downstreamReqAborted: true });
+
+				return;
+			}
+
+			let rejectDownstreamReq;
+
+			// As we don't have a real fetch to abort, listen for aborts on the
+			// downstream request and reject the downstream middleware promise
+			const fetchPromise = new Promise((_, reject) => {
+				rejectDownstreamReq = reject;
+			});
+
+			req.signal.addEventListener('abort', () => {
+				rejectDownstreamReq(new DOMException('Request aborted', 'AbortError'));
+
+				updateDoneConditions({ downstreamReqAborted: true });
+			});
+
+			return fetchPromise;
+		};
+
+		dedupe(firstRequest, firstNext)
+			.catch(function(err) {
+				expect(err.message).to.equal('Request was aborted.');
+
+				updateDoneConditions({ upstreamReqAborted: true });
+			});
+
+		abortController.abort();
+	});
+
+	it('should not abort downstream request if not all upstream requests were aborted', function(done) {
+		var abortController = new AbortController();
+		var successConditions = {
+			downstreamReqAborted: false,
+			firstUpstreamReqAborted: true,
+			secondUpstreamReqAborted: true,
+			thirdUpstreamReqAborted: false
+		};
+
+		var doneConditions = {
+			downstreamReqAborted: false,
+			firstUpstreamReqAborted: false,
+			secondUpstreamReqAborted: false,
+			thirdUpstreamReqAborted: false
+		};
+
+		var updateDoneConditions = (newConds) => {
+			doneConditions = Object.assign(doneConditions, newConds);
+		};
+
+		var fetchResolver;
+
+		var firstRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' }, 'GET', abortController);
+		var secondRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' }, 'GET', abortController);
+		var thirdRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' }, 'GET');
+
+		var firstNext = req => {
+			if (req.signal.aborted) {
+				updateDoneConditions({ downstreamReqAborted: true });
+
+				return;
+			}
+
+			let rejectDownstreamReq;
+
+			// As we don't have a real fetch to abort, listen for aborts on the
+			// downstream request and reject the downstream middleware promise
+			const fetchPromise = new Promise((resolve, reject) => {
+				fetchResolver = resolve;
+				rejectDownstreamReq = reject;
+			});
+
+			req.signal.addEventListener('abort', () => {
+				rejectDownstreamReq(new DOMException('Request aborted', 'AbortError'));
+
+				updateDoneConditions({ downstreamReqAborted: true });
+			});
+
+			return fetchPromise;
+		};
+
+		var secondNext = sinon.stub().returns(Promise.reject());
+		var thirdNext = sinon.stub().returns(Promise.reject());
+
+		dedupe(firstRequest, firstNext)
+			.catch(function(err) {
+				expect(err.message).to.equal('Request was aborted.');
+
+				updateDoneConditions({ firstUpstreamReqAborted: true });
+			});
+
+		dedupe(secondRequest, secondNext)
+			.catch(function(err) {
+				expect(secondNext).not.to.be.called;
+				expect(err.message).to.equal('Request was aborted.');
+
+				updateDoneConditions({ secondUpstreamReqAborted: true });
+			});
+
+		dedupe(thirdRequest, thirdNext)
+			.catch(function() {
+				expect(thirdNext).not.to.be.called;
+
+				updateDoneConditions({ thirdUpstreamReqAborted: true });
+			});
+
+		abortController.abort();
+
+		setTimeout(() => {
+			fetchResolver();
+
+			expect(successConditions).to.deep.equal(doneConditions);
+
+			done();
+		});
 	});
 
 	it('should release request promises that were rejected', function(done) {

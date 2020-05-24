@@ -43,18 +43,27 @@ export class D2LFetchDedupe {
 		let newRequest = false;
 
 		// if this is the first request for this key,
-		// clone the source request and initiate a fetch
+		// clone the upstream request and pass to downstream middleware
 		if (!this._inflightRequests[key]) {
+			const abortController = new AbortController();
+
 			const requestCopy = new Request(request.url, {
 				method: request.method,
 				headers: new Headers(request.headers),
 				mode: request.mode,
 				cache: request.cache,
-				credentials: request.credentials
+				credentials: request.credentials,
+				keepalive: request.keepalive,
+				integrity: request.integrity,
+				redirect: request.redirect,
+				referrer: request.referrer,
+				referrerPolicy: request.referrerPolicy,
+				signal: abortController.signal
 			});
 
 			this._inflightRequests[key] = {
 				request: requestCopy,
+				abortController,
 				sourceRequests: {}
 			};
 
@@ -70,21 +79,22 @@ export class D2LFetchDedupe {
 				}
 			};
 
-			// Aborting a request will reject that request and remove it from the pending
-			// request list, but unless it's the last source request, other requests
-			// should continue unless they're specifically aborted also.
+			// Aborting a request will cause the upstream promise to be rejected and removed from
+			// the sourceRequests set, but will not cause the downstream request to be aborted
+			// unless there are no other upstream requests mapped to it.
 			if (request.signal && typeof request.signal.addEventListener === 'function') {
 				request.signal.addEventListener('abort', () => {
-					// if this is the last upstream request, abort the downstream request
-					if (Object.keys(this._inflightRequests[key].sourceRequests).length === 1) {
-						const abortController = this._inflightRequests[key].request.abortController;
+					const inflightRequest = this._inflightRequests[key];
+
+					if (Object.keys(inflightRequest.sourceRequests).length === 1) {
+						const abortController = this._inflightRequests[key].abortController;
 
 						if (abortController && typeof abortController.abort === 'function') {
 							abortController.abort();
 						}
 					}
 
-					delete this._inflightRequests[key].sourceRequests[reqId];
+					delete inflightRequest.sourceRequests[reqId];
 
 					const abortError = new DOMException('Request was aborted.', 'AbortError');
 
@@ -93,45 +103,39 @@ export class D2LFetchDedupe {
 			}
 		});
 
-		/**
-		 * if a request for this key exists, create a new entry and
-		 * return the deduped request promise
-		 */
+		// If an inflight request exists for this key, return the deduped request.
 		if (!newRequest) {
 			return dedupedRequest;
 		}
 
-		if (!next) {
-			return Promise.resolve(request);
-		}
-
+		// No existing inflight request exists, so pass the canonical request downstream
 		const result = next(this._inflightRequests[key].request);
 
-		if (result && result instanceof Promise) {
-			this._inflightRequests[key].action = result
-				.then((response) => {
-					const res = Object.keys(this._inflightRequests[key].sourceRequests).length > 1
-						? this._clone(response)
-						: response;
+		this._inflightRequests[key].action = result
+			.then((response) => {
+				const sourceRequests = Object.values(this._inflightRequests[key].sourceRequests);
 
-					for (const sourceRequest of Object.values(this._inflightRequests[key].sourceRequests)) {
-						sourceRequest.resolvers.resolve(res);
-					}
+				const res = sourceRequests.length > 1
+					? this._clone(response)
+					: response;
 
-					delete this._inflightRequests[key];
-				})
-				.catch((err) => {
-					if (!this._inflightRequests[key]) {
-						return;
-					}
+				for (const sourceRequest of sourceRequests) {
+					sourceRequest.resolvers.resolve(res);
+				}
 
-					for (const sourceRequest of Object.values(this._inflightRequests[key].sourceRequests)) {
-						sourceRequest.resolvers.reject(err);
-					}
+				delete this._inflightRequests[key];
+			})
+			.catch((err) => {
+				if (!this._inflightRequests[key]) {
+					return;
+				}
 
-					delete this._inflightRequests[key];
-				});
-		}
+				for (const sourceRequest of Object.values(this._inflightRequests[key].sourceRequests)) {
+					sourceRequest.resolvers.reject(err);
+				}
+
+				delete this._inflightRequests[key];
+			});
 
 		return dedupedRequest;
 	}

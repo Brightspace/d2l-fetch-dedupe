@@ -14,7 +14,8 @@
   "scripts": {
     "build": "rollup -c rollup/rollup.config.js",
     "prepare": "npm run build",
-    "pretest": "npm run build",
+    "pretest:polymer:local": "npm run build",
+    "pretest:polymer:sauce": "npm run build",
     "test:lint:js": "eslint src/ test/ --ext .js",
     "test:lint": "npm run test:lint:js",
     "test": "npm run test:lint && npm run test:polymer:local",
