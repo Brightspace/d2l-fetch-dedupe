@@ -1,5 +1,5 @@
 /**
- * @typedef {(request: Request, next?: MiddlewareFunc) => Promise<Response>} MiddlewareFunc
+ * @typedef {(request: Request, next: MiddlewareFunc) => Promise<Response>} MiddlewareFunc
  *
  * @typedef {object} InflightSourceRequest
  * @prop {Request} request
@@ -31,9 +31,6 @@ export class D2LFetchDedupe {
 		}
 
 		if (request.method !== 'GET' && request.method !== 'HEAD' && request.method !== 'OPTIONS') {
-			if (!next) {
-				return Promise.resolve(request);
-			}
 			return next(request);
 		}
 
@@ -96,9 +93,7 @@ export class D2LFetchDedupe {
 
 					delete inflightRequest.sourceRequests[reqId];
 
-					const abortError = new DOMException('Request was aborted.', 'AbortError');
-
-					reject(abortError);
+					reject(new DOMException('Request was aborted.', 'AbortError'));
 				});
 			}
 		});
