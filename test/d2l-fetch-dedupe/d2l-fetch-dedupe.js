@@ -65,6 +65,43 @@ describe('d2l-fetch-dedupe', function() {
 			});
 	});
 
+	it('should pass a request with the correct properties to the next function', function() {
+		var req = new Request('/path/to/data', {
+			method: 'GET',
+			headers: new Headers({
+				'Authorization': 'Bearer foo',
+				'X-Other-Header': 'some value'
+			}),
+			mode: 'no-cors',
+			cache: 'no-store',
+			credentials: 'include',
+			keepalive: true,
+			integrity: '123456',
+			redirect: 'error'
+		});
+
+		var next = sandbox.stub().returns(createSuccessfulResponse());
+		return dedupe(req, next)
+			.then(function() {
+				expect(next).to.be.called;
+
+				const nextReqArg = next.getCall(0).args[0];
+
+				expect(nextReqArg.url).to.equal(req.url);
+				expect(nextReqArg.method).to.equal(req.method);
+				expect(nextReqArg.headers.get('Authorization')).to.equal(req.headers.get('Authorization'));
+				expect(nextReqArg.headers.get('X-Other-Header')).to.equal(req.headers.get('X-Other-Header'));
+				expect(nextReqArg.mode).to.equal(req.mode);
+				expect(nextReqArg.cache).to.equal(req.cache);
+				expect(nextReqArg.credentials).to.equal(req.credentials);
+				expect(nextReqArg.keepalive).to.equal(req.keepalive);
+				expect(nextReqArg.integrity).to.equal(req.integrity);
+				expect(nextReqArg.redirect).to.equal(req.redirect);
+				expect(nextReqArg.referrer).to.equal(req.referrer);
+				expect(nextReqArg.referrerPolicy).to.equal(req.referrerPolicy);
+			});
+	});
+
 	it('should not call the next function if a matching request exists in flight', function() {
 		var firstRequest = getRequest('/path/to/data');
 		var firstNext = sandbox.stub().returns(createSuccessfulResponse());
