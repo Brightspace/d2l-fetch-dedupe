@@ -43,18 +43,7 @@ export class D2LFetchDedupe {
 		// clone the upstream request and pass to downstream middleware
 		if (!this._inflightRequests[key]) {
 			const abortController = new AbortController();
-
-			const requestCopy = new Request(request.url, {
-				method: request.method,
-				headers: new Headers(request.headers),
-				mode: request.mode,
-				cache: request.cache,
-				credentials: request.credentials,
-				keepalive: request.keepalive,
-				integrity: request.integrity,
-				redirect: request.redirect,
-				referrer: request.referrer,
-				referrerPolicy: request.referrerPolicy,
+			const requestCopy = new Request(request, {
 				signal: abortController.signal
 			});
 
@@ -70,10 +59,7 @@ export class D2LFetchDedupe {
 		const dedupedRequest = new Promise((resolve, reject) => {
 			this._inflightRequests[key].sourceRequests[reqId] = {
 				request,
-				resolvers: {
-					resolve,
-					reject
-				}
+				resolvers: { resolve, reject }
 			};
 
 			// Aborting a request will cause the upstream promise to be rejected and removed from
@@ -92,7 +78,6 @@ export class D2LFetchDedupe {
 					}
 
 					delete inflightRequest.sourceRequests[reqId];
-
 					reject(new DOMException('Request was aborted.', 'AbortError'));
 				});
 			}
@@ -103,13 +88,12 @@ export class D2LFetchDedupe {
 			return dedupedRequest;
 		}
 
-		// No existing inflight request exists, so pass the canonical request downstream
+		// No inflight request for this key, so pass the middleware-created request downstream
 		const result = next(this._inflightRequests[key].request);
 
 		this._inflightRequests[key].action = result
 			.then((response) => {
 				const sourceRequests = Object.values(this._inflightRequests[key].sourceRequests);
-
 				const res = sourceRequests.length > 1
 					? this._clone(response)
 					: response;
@@ -143,6 +127,9 @@ export class D2LFetchDedupe {
 		return request.url;
 	}
 
+	/**
+	 * @param {Response} response
+	 */
 	_clone(response) {
 		// body can only be read once, override the functions
 		// so that they return the output of the original call
