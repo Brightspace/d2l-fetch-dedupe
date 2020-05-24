@@ -361,19 +361,19 @@ describe('d2l-fetch-dedupe', function() {
 	});
 
 	it('should abort downstream request if only remaining upstream request was aborted', function(done) {
-		var abortController = new AbortController();
-		var currState = {
+		const abortController = new AbortController();
+		const currState = {
 			downstreamReqAborted: false,
 			upstreamReqAborted: false
 		};
-		var successState = {
+		const successState = {
 			downstreamReqAborted: true,
 			upstreamReqAborted: true
 		};
-		var fetchResolvers;
+		let fetchResolvers;
 
-		var firstRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' }, 'GET', abortController);
-		var firstNext = req => {
+		const firstRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' }, 'GET', abortController);
+		const firstNext = req => {
 			const fetchPromise = new Promise((resolve, reject) => {
 				fetchResolvers = { resolve, reject };
 			});
@@ -403,27 +403,27 @@ describe('d2l-fetch-dedupe', function() {
 	});
 
 	it('should not abort downstream request if not all upstream requests were aborted', function(done) {
-		var abortController = new AbortController();
-		var successState = {
+		const abortController = new AbortController();
+		const successState = {
 			downstreamReqAborted: false,
 			firstUpstreamReqAborted: true,
 			secondUpstreamReqAborted: true,
 			thirdUpstreamReqAborted: false
 		};
-		var currState = {
+		const currState = {
 			downstreamReqAborted: false,
 			firstUpstreamReqAborted: false,
 			secondUpstreamReqAborted: false,
 			thirdUpstreamReqAborted: false
 		};
 
-		var firstRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' }, 'GET', abortController);
-		var secondRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' }, 'GET', abortController);
-		var thirdRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' }, 'GET');
+		const firstRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' }, 'GET', abortController);
+		const secondRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' }, 'GET', abortController);
+		const thirdRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' }, 'GET');
 
-		var fetchResolvers;
+		let fetchResolvers;
 
-		var firstNext = req => {
+		const firstNext = req => {
 			const fetchPromise = new Promise((resolve, reject) => {
 				fetchResolvers = { resolve, reject };
 			});
@@ -437,8 +437,8 @@ describe('d2l-fetch-dedupe', function() {
 			return fetchPromise;
 		};
 
-		var secondNext = sinon.stub().returns(Promise.reject());
-		var thirdNext = sinon.stub().returns(Promise.reject());
+		const secondNext = sinon.stub().returns(Promise.reject());
+		const thirdNext = sinon.stub().returns(Promise.reject());
 
 		dedupe(firstRequest, firstNext)
 			.catch(function(err) {
@@ -472,10 +472,10 @@ describe('d2l-fetch-dedupe', function() {
 	});
 
 	it('should release request promises that were rejected', function(done) {
-		var firstRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' });
-		var firstNext = sandbox.stub().returns(Promise.reject(new Error()));
-		var secondRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' });
-		var secondNext = sandbox.stub().returns(createSuccessResponse());
+		const firstRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' });
+		const firstNext = sandbox.stub().returns(Promise.reject(new Error()));
+		const secondRequest = getRequest('/path/to/data', { Authorization: 'let-me-in' });
+		const secondNext = sandbox.stub().returns(createSuccessResponse());
 
 		dedupe(firstRequest, firstNext)
 			.catch(function() {

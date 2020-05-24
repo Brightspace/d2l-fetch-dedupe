@@ -1,14 +1,13 @@
 /**
- * @typedef {(request: Request, next: MiddlewareFunc) => Promise<Response>} MiddlewareFunc
+ * @typedef {(request: Request) => Promise<Response>} MiddlewareFunc
+ * @typedef {Parameters<ConstructorParameters<typeof Promise>[0]>} PromiseCallbackParams
  *
- * @typedef {object} InflightSourceRequest
- * @prop {Request} request
- * @prop {{resolve: Function, reject: Function}} resolvers
+ * @typedef {{resolve: PromiseCallbackParams[0], reject: PromiseCallbackParams[1]}} DeduplicatedRequest
  *
  * @typedef {object} InflightRequestEntry
- * @prop {Request} request
+ * @prop {Request} inflightRequest
  * @prop {AbortController} [abortController]
- * @prop {Record<string, InflightSourceRequest>} sourceRequests
+ * @prop {Record<string, DeduplicatedRequest>} dedupedRequests
  *
  * @typedef {Record<string, InflightRequestEntry>} InflightRequestInfo
  */
@@ -16,14 +15,16 @@
 export class D2LFetchDedupe {
 
 	constructor() {
-		this._nextReqId = 0;
 		/** @type {InflightRequestInfo} */
 		this._inflightRequests = this._inflightRequests || {};
+		this._nextReqId = 0;
 	}
 
 	/**
 	 * @param {Request} request
 	 * @param {MiddlewareFunc} next
+	 *
+	 * @returns {Promise<Response>}
 	 */
 	dedupe(request, next) {
 		if (false === request instanceof Request) {
@@ -39,37 +40,29 @@ export class D2LFetchDedupe {
 
 		let newRequest = false;
 
-		// if this is the first request for this key,
-		// clone the upstream request and pass to downstream middleware
 		if (!this._inflightRequests[key]) {
 			const abortController = new AbortController();
-			const requestCopy = new Request(request, {
+			const inflightRequest = new Request(request, {
 				signal: abortController.signal
 			});
 
 			this._inflightRequests[key] = {
-				request: requestCopy,
+				inflightRequest,
 				abortController,
-				sourceRequests: {}
+				dedupedRequests: {}
 			};
 
 			newRequest = true;
 		}
 
 		const dedupedRequest = new Promise((resolve, reject) => {
-			this._inflightRequests[key].sourceRequests[reqId] = {
-				request,
-				resolvers: { resolve, reject }
-			};
+			this._inflightRequests[key].dedupedRequests[reqId] = { resolve, reject };
 
-			// Aborting a request will cause the upstream promise to be rejected and removed from
-			// the sourceRequests set, but will not cause the downstream request to be aborted
-			// unless there are no other upstream requests mapped to it.
 			if (request.signal && typeof request.signal.addEventListener === 'function') {
 				request.signal.addEventListener('abort', () => {
 					const inflightRequest = this._inflightRequests[key];
 
-					if (Object.keys(inflightRequest.sourceRequests).length === 1) {
+					if (Object.keys(inflightRequest.dedupedRequests).length === 1) {
 						const abortController = this._inflightRequests[key].abortController;
 
 						if (abortController && typeof abortController.abort === 'function') {
@@ -77,29 +70,25 @@ export class D2LFetchDedupe {
 						}
 					}
 
-					delete inflightRequest.sourceRequests[reqId];
+					delete inflightRequest.dedupedRequests[reqId];
 					reject(new DOMException('Request was aborted.', 'AbortError'));
 				});
 			}
 		});
 
-		// If an inflight request exists for this key, return the deduped request.
 		if (!newRequest) {
 			return dedupedRequest;
 		}
 
-		// No inflight request for this key, so pass the middleware-created request downstream
-		const result = next(this._inflightRequests[key].request);
-
-		this._inflightRequests[key].action = result
+		next(this._inflightRequests[key].inflightRequest)
 			.then((response) => {
-				const sourceRequests = Object.values(this._inflightRequests[key].sourceRequests);
-				const res = sourceRequests.length > 1
+				const dedupedRequests = Object.values(this._inflightRequests[key].dedupedRequests);
+				const res = dedupedRequests.length > 1
 					? this._clone(response)
 					: response;
 
-				for (const sourceRequest of sourceRequests) {
-					sourceRequest.resolvers.resolve(res);
+				for (const dedupedRequest of dedupedRequests) {
+					dedupedRequest.resolve(res);
 				}
 
 				delete this._inflightRequests[key];
@@ -109,8 +98,8 @@ export class D2LFetchDedupe {
 					return;
 				}
 
-				for (const sourceRequest of Object.values(this._inflightRequests[key].sourceRequests)) {
-					sourceRequest.resolvers.reject(err);
+				for (const dedupedRequest of Object.values(this._inflightRequests[key].dedupedRequests)) {
+					dedupedRequest.reject(err);
 				}
 
 				delete this._inflightRequests[key];
@@ -119,6 +108,9 @@ export class D2LFetchDedupe {
 		return dedupedRequest;
 	}
 
+	/**
+	 * @param {Request} request
+	 */
 	_getKey(request) {
 		if (request.headers.has('Authorization')) {
 			return request.url + request.headers.get('Authorization');
