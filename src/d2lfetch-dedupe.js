@@ -63,7 +63,8 @@ export class D2LFetchDedupe {
 		const dedupedRequest = new Promise((resolve, reject) => {
 			const inflightRequestEntry = this._inflightRequests[key];
 			const reqId = inflightRequestEntry.nextReqId++;
-			const newDedupedRequest = /** @type {DeduplicatedRequest} */ {
+			/** @type {DeduplicatedRequest} */
+			const newDedupedRequest = {
 				resolvers: { resolve, reject },
 				reqId
 			};
