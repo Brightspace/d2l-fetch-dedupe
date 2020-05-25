@@ -1,8 +1,8 @@
 /**
  * @typedef {(request: Request) => Promise<Response>} MiddlewareFunc
  * @typedef {Parameters<ConstructorParameters<typeof Promise>[0]>} PromiseCallbackParams
- *
- * @typedef {{resolve: PromiseCallbackParams[0], reject: PromiseCallbackParams[1]}} DeduplicatedRequest
+ * @typedef {{resolve: PromiseCallbackParams[0]; reject: PromiseCallbackParams[1]}} Resolvers
+ * @typedef {{resolvers: Resolvers, removeAbortListener?: Function}} DeduplicatedRequest
  *
  * @typedef {object} InflightRequestEntry
  * @prop {Request} inflightRequest
@@ -59,27 +59,45 @@ export class D2LFetchDedupe {
 		}
 
 		const dedupedRequest = new Promise((resolve, reject) => {
-			this._inflightRequests[key].dedupedRequests[reqId] = { resolve, reject };
+			const inflightRequestEntry = this._inflightRequests[key];
+
+			inflightRequestEntry.dedupedRequests[reqId] = {
+				resolvers: { resolve, reject }
+			};
 
 			if (request.signal && typeof request.signal.addEventListener === 'function') {
-				request.signal.addEventListener('abort', () => {
-					const inflightRequest = this._inflightRequests[key];
+				/**
+				 * @param {AbortSignal} signal
+				 * @param {string} key
+				 * @param {number} reqId
+				 */
+				const addAbortEventListener = (signal, key, reqId) => {
+					const handler = () => {
+						signal.removeEventListener('abort', handler);
 
-					if (!inflightRequest) {
-						return;
-					}
+						const inflightRequestEntry = this._inflightRequests[key];
 
-					if (Object.keys(inflightRequest.dedupedRequests).length === 1) {
-						const abortController = this._inflightRequests[key].abortController;
-
-						if (abortController && typeof abortController.abort === 'function') {
-							abortController.abort();
+						if (!inflightRequestEntry) {
+							return;
 						}
-					}
 
-					delete inflightRequest.dedupedRequests[reqId];
-					reject(new DOMException('Request was aborted.', 'AbortError'));
-				});
+						if (Object.keys(inflightRequestEntry.dedupedRequests).length === 1) {
+							const abortController = inflightRequestEntry.abortController;
+
+							if (abortController && typeof abortController.abort === 'function') {
+								abortController.abort();
+							}
+						}
+
+						delete inflightRequestEntry.dedupedRequests[reqId];
+						reject(new DOMException('Request was aborted.', 'AbortError'));
+					};
+
+					inflightRequestEntry.dedupedRequests[reqId].removeAbortListener = () => signal.removeEventListener('abort', handler);
+					signal.addEventListener('abort', handler);
+				};
+
+				addAbortEventListener(request.signal, key, reqId);
 			}
 		});
 
@@ -95,18 +113,20 @@ export class D2LFetchDedupe {
 					: response;
 
 				for (const dedupedRequest of dedupedRequests) {
-					dedupedRequest.resolve(res);
+					if (typeof dedupedRequest.removeAbortListener === 'function') {
+						dedupedRequest.removeAbortListener();
+					}
+					dedupedRequest.resolvers.resolve(res);
 				}
 
 				delete this._inflightRequests[key];
 			})
 			.catch((err) => {
-				if (!this._inflightRequests[key]) {
-					return;
-				}
-
 				for (const dedupedRequest of Object.values(this._inflightRequests[key].dedupedRequests)) {
-					dedupedRequest.reject(err);
+					if (typeof dedupedRequest.removeAbortListener === 'function') {
+						dedupedRequest.removeAbortListener();
+					}
+					dedupedRequest.resolvers.reject(err);
 				}
 
 				delete this._inflightRequests[key];
