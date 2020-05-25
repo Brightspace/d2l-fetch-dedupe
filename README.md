@@ -4,7 +4,7 @@ Provides a middleware function for de-duplicating fetch requests for the same ur
 ## Setup
 
 ```sh
-yarn install
+npm ci
 ```
 
 ## Build

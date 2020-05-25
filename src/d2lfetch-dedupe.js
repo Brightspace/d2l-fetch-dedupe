@@ -16,7 +16,7 @@ export class D2LFetchDedupe {
 
 	constructor() {
 		/** @type {InflightRequestInfo} */
-		this._inflightRequests = this._inflightRequests || {};
+		this._inflightRequests = {};
 		this._nextReqId = 0;
 	}
 
