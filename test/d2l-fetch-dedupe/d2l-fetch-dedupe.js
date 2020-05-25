@@ -402,7 +402,7 @@ describe('d2l-fetch-dedupe', function() {
 		});
 	});
 
-	it('should not abort downstream request if not all upstream requests were aborted', function(done) {
+	it('should not abort downstream request if at least one upstream request was not aborted', function(done) {
 		const abortController = new AbortController();
 		const successState = {
 			downstreamReqAborted: false,
