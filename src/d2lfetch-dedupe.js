@@ -6,7 +6,7 @@
  *
  * @typedef {object} InflightRequestEntry
  * @prop {Request} inflightRequest
- * @prop {AbortController} [abortController]
+ * @prop {AbortController | null} abortController
  * @prop {Record<string, DeduplicatedRequest>} dedupedRequests
  *
  * @typedef {Record<string, InflightRequestEntry>} InflightRequestInfo
@@ -41,9 +41,12 @@ export class D2LFetchDedupe {
 		let newRequest = false;
 
 		if (!this._inflightRequests[key]) {
-			const abortController = new AbortController();
+			const abortController = window.AbortController
+				? new AbortController()
+				: null;
+
 			const inflightRequest = new Request(request, {
-				signal: abortController.signal
+				signal: (abortController || {}).signal
 			});
 
 			this._inflightRequests[key] = {
