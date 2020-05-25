@@ -466,7 +466,7 @@ describe('d2l-fetch-dedupe', function() {
 
 		setTimeout(() => {
 			fetchResolvers.resolve();
-			expect(successState).to.deep.equal(currState);
+			expect(currState).to.deep.equal(successState);
 			done();
 		});
 	});

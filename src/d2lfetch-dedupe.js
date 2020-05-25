@@ -65,6 +65,10 @@ export class D2LFetchDedupe {
 				request.signal.addEventListener('abort', () => {
 					const inflightRequest = this._inflightRequests[key];
 
+					if (!inflightRequest) {
+						return;
+					}
+
 					if (Object.keys(inflightRequest.dedupedRequests).length === 1) {
 						const abortController = this._inflightRequests[key].abortController;
 
