@@ -1,51 +1,149 @@
+/**
+ * @typedef {(request: Request) => Promise<Response>} MiddlewareFunc
+ * @typedef {Parameters<ConstructorParameters<typeof Promise>[0]>} PromiseCallbackParams
+ * @typedef {{resolve: PromiseCallbackParams[0]; reject: PromiseCallbackParams[1]}} Resolvers
+ * @typedef {{reqId: number; resolvers: Resolvers; removeAbortListener?: Function}} DeduplicatedRequest
+ *
+ * @typedef {object} InflightRequestEntry
+ * @prop {Request} inflightRequest
+ * @prop {AbortController | undefined} abortController
+ * @prop {DeduplicatedRequest[]} dedupedRequests
+ * @prop {number} nextReqId
+ *
+ * @typedef {Record<string, InflightRequestEntry>} InflightRequestInfo
+ */
+
 export class D2LFetchDedupe {
 
 	constructor() {
-		this._inflightRequests = this._inflightRequests || [];
+		/** @type {InflightRequestInfo} */
+		this._inflightRequests = {};
 	}
 
+	/**
+	 * @param {Request} request
+	 * @param {MiddlewareFunc} next
+	 *
+	 * @returns {Promise<Response>}
+	 */
 	dedupe(request, next) {
 		if (false === request instanceof Request) {
 			return Promise.reject(new TypeError('Invalid request argument supplied; must be a valid window.Request object.'));
 		}
 
 		if (request.method !== 'GET' && request.method !== 'HEAD' && request.method !== 'OPTIONS') {
-			if (!next) {
-				return Promise.resolve(request);
-			}
 			return next(request);
 		}
 
 		const key = this._getKey(request);
-		if (this._inflightRequests[key]) {
-			this._inflightRequests[key].count++;
-			return this._inflightRequests[key].action;
+
+		let newRequest = false;
+
+		if (!this._inflightRequests[key]) {
+			const abortController = request.signal
+				&& typeof request.signal.addEventListener === 'function'
+				&& window.AbortController
+					? new AbortController()
+					: undefined;
+
+			const inflightRequest = new Request(request, {
+				signal: abortController ? abortController.signal : undefined
+			});
+
+			this._inflightRequests[key] = {
+				inflightRequest,
+				abortController,
+				dedupedRequests: [],
+				nextReqId: 0
+			};
+
+			newRequest = true;
 		}
 
-		if (!next) {
-			return Promise.resolve(request);
+		const dedupedRequest = new Promise((resolve, reject) => {
+			const inflightRequestEntry = this._inflightRequests[key];
+			const reqId = inflightRequestEntry.nextReqId++;
+			/** @type {DeduplicatedRequest} */
+			const newDedupedRequest = {
+				resolvers: { resolve, reject },
+				reqId
+			};
+
+			inflightRequestEntry.dedupedRequests.push(newDedupedRequest);
+
+			if (request.signal) {
+				/**
+				 * @param {AbortSignal} signal
+				 * @param {string} key
+				 * @param {number} reqId
+				 */
+				const addAbortEventListener = (signal, key, reqId) => {
+					const handler = () => {
+						signal.removeEventListener('abort', handler);
+
+						const inflightRequestEntry = this._inflightRequests[key];
+						if (!inflightRequestEntry) {
+							return;
+						}
+
+						const dedupedReqIndex = inflightRequestEntry.dedupedRequests.findIndex(r => r.reqId === reqId);
+						if (dedupedReqIndex < 0) {
+							return;
+						}
+
+						inflightRequestEntry.dedupedRequests.splice(dedupedReqIndex, 1);
+
+						if (inflightRequestEntry.dedupedRequests.length === 0 && inflightRequestEntry.abortController) {
+							inflightRequestEntry.abortController.abort();
+						}
+						reject(new DOMException('Request was aborted.', 'AbortError'));
+					};
+
+					newDedupedRequest.removeAbortListener = () => signal.removeEventListener('abort', handler);
+					signal.addEventListener('abort', handler);
+				};
+
+				addAbortEventListener(request.signal, key, reqId);
+			}
+		});
+
+		if (!newRequest) {
+			return dedupedRequest;
 		}
 
-		const result = next(request);
-		if (result && result instanceof Promise) {
-			this._inflightRequests[key] = { count: 1 };
-			this._inflightRequests[key].action = result
-				.then(function(response) {
-					const usedMultiple = this._inflightRequests[key].count !== 1;
-					delete this._inflightRequests[key];
-					return this._clone(response, usedMultiple);
-				}.bind(this))
-				.catch(function(err) {
-					delete this._inflightRequests[key];
-					return Promise.reject(err);
-				}.bind(this));
+		next(this._inflightRequests[key].inflightRequest)
+			.then((response) => {
+				const dedupedRequests = this._inflightRequests[key].dedupedRequests;
+				delete this._inflightRequests[key];
 
-			return this._inflightRequests[key].action;
-		}
+				const res = dedupedRequests.length > 1
+					? this._clone(response)
+					: response;
 
-		return result;
+				for (const dedupedRequest of dedupedRequests) {
+					if (typeof dedupedRequest.removeAbortListener === 'function') {
+						dedupedRequest.removeAbortListener();
+					}
+					dedupedRequest.resolvers.resolve(res);
+				}
+			}, (err) => {
+				const dedupedRequests = this._inflightRequests[key].dedupedRequests;
+				delete this._inflightRequests[key];
+
+				for (const dedupedRequest of dedupedRequests) {
+					if (typeof dedupedRequest.removeAbortListener === 'function') {
+						dedupedRequest.removeAbortListener();
+					}
+					dedupedRequest.resolvers.reject(err);
+				}
+			});
+
+		return dedupedRequest;
 	}
 
+	/**
+	 * @param {Request} request
+	 */
 	_getKey(request) {
 		if (request.headers.has('Authorization')) {
 			return request.url + request.headers.get('Authorization');
@@ -54,12 +152,10 @@ export class D2LFetchDedupe {
 		return request.url;
 	}
 
-	_clone(response, usedMultiple) {
-		if (!usedMultiple || response instanceof Response === false) {
-			// no calls matched, don't need to clone
-			return Promise.resolve(response);
-		}
-
+	/**
+	 * @param {Response} response
+	 */
+	_clone(response) {
 		// body can only be read once, override the functions
 		// so that they return the output of the original call
 

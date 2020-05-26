@@ -2,5 +2,8 @@
   "extends": "brightspace/node-config",
   "parserOptions": {
     "sourceType": "module"
+  },
+  "globals": {
+    "AbortController": false
   }
 }

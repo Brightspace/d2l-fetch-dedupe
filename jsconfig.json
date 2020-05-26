@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "lib": ["dom"],
+    "checkJs": true,
+    "strict": true
+  },
+  "include": ["src"]
+}
