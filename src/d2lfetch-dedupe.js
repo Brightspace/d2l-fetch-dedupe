@@ -126,8 +126,7 @@ export class D2LFetchDedupe {
 					}
 					dedupedRequest.resolvers.resolve(res);
 				}
-			})
-			.catch((err) => {
+			}, (err) => {
 				const dedupedRequests = this._inflightRequests[key].dedupedRequests;
 				delete this._inflightRequests[key];
 
