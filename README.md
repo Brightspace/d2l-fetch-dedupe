@@ -7,12 +7,6 @@ Provides a middleware function for de-duplicating fetch requests for the same ur
 npm ci
 ```
 
-## Build
-
-```sh
-npm run build
-```
-
 ## Usage
 
 Reference the script in your html after your reference to `d2l-fetch` (see [here](https://github.com/Brightspace/d2l-fetch) for details on d2l-fetch):
@@ -23,7 +17,7 @@ npm install d2l-fetch-dedupe
 ```
 
 ```javascript
-import dedupe from 'd2l-fetch-dedupe';
+import { fetchDedupe } from 'd2l-fetch-dedupe';
 ```
 
 This will import the `auth` middleware
@@ -34,11 +28,9 @@ Install the `dedupe` middleware to d2lfetch via the `use` function and then star
 
 ```js
 d2lfetch.use({name: 'dedupe' fn: dedupe});
-
-d2lfetch.fetch(new Request('http://example.com/api/someentity/'))
-	.then(function(response) {
-		// do something with the response
-	});
+const response = await d2lfetch.fetch(
+  new Request('http://example.com/api/someentity/')
+);
 ```
 
 Requests are deduped based on the combination of `url` and `Authorization` request header value.
@@ -46,14 +38,41 @@ Any request that matches an existing in-flight request based on this combination
 in a subsequent network request but will rather be given a promise that resolves to a clone of
 the inflight request's Response.
 
-## Browser compatibility
+## Versioning & Releasing
 
-`d2l-fetch-dedupe` makes use of a javascript feature that is not yet fully supported across all modern browsers: [Promises](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Promise). If you need to support browsers that do not yet implement this feature you will need to include polyfills for this functionality.
+> TL;DR: Commits prefixed with `fix:` and `feat:` will trigger patch and minor releases when merged to `main`. Read on for more details...
 
-We recommend:
+The [semantic-release GitHub Action](https://github.com/BrightspaceUI/actions/tree/main/semantic-release) is called from the `release.yml` GitHub Action workflow to handle version changes and releasing.
 
-* [promise-polyfill](https://github.com/PolymerLabs/promise-polyfill/)
+### Version Changes
 
-## Publishing
+All version changes should obey [semantic versioning](https://semver.org/) rules:
+1. **MAJOR** version when you make incompatible API changes,
+2. **MINOR** version when you add functionality in a backwards compatible manner, and
+3. **PATCH** version when you make backwards compatible bug fixes.
 
-The application will automatically increment the minor build version and publish a release version to the Brightspace CDN after merge to the `master` branch is complete. If you wish to increment the `patch` or `major` version instead please add **[increment patch]** or **[increment major]** to the notes inside your merge message.
+The next version number will be determined from the commit messages since the previous release. Our semantic-release configuration uses the [Angular convention](https://github.com/conventional-changelog/conventional-changelog/tree/master/packages/conventional-changelog-angular) when analyzing commits:
+* Commits which are prefixed with `fix:` or `perf:` will trigger a `patch` release. Example: `fix: validate input before using`
+* Commits which are prefixed with `feat:` will trigger a `minor` release. Example: `feat: add toggle() method`
+* To trigger a MAJOR release, include `BREAKING CHANGE:` with a space or two newlines in the footer of the commit message
+* Other suggested prefixes which will **NOT** trigger a release: `build:`, `ci:`, `docs:`, `style:`, `refactor:` and `test:`. Example: `docs: adding README for new component`
+
+To revert a change, add the `revert:` prefix to the original commit message. This will cause the reverted change to be omitted from the release notes. Example: `revert: fix: validate input before using`.
+
+### Releases
+
+When a release is triggered, it will:
+* Update the version in `package.json`
+* Tag the commit
+* Create a GitHub release (including release notes)
+* Deploy a new package to NPM
+
+### Releasing from Maintenance Branches
+
+Occasionally you'll want to backport a feature or bug fix to an older release. `semantic-release` refers to these as [maintenance branches](https://semantic-release.gitbook.io/semantic-release/usage/workflow-configuration#maintenance-branches).
+
+Maintenance branch names should be of the form: `+([0-9])?(.{+([0-9]),x}).x`.
+
+Regular expressions are complicated, but this essentially means branch names should look like:
+* `1.15.x` for patch releases on top of the `1.15` release (after version `1.16` exists)
+* `2.x` for feature releases on top of the `2` release (after version `3` exists)

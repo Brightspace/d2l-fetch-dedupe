@@ -1,6 +1,0 @@
-{
-  "extends": "brightspace/wct-config",
-  "parserOptions": {
-    "sourceType": "module"
-  }
-}
