@@ -42,9 +42,7 @@ export class D2LFetchDedupe {
 		if (!this._inflightRequests[key]) {
 			const abortController = request.signal
 				&& typeof request.signal.addEventListener === 'function'
-				&& window.AbortController
-					? new AbortController()
-					: undefined;
+				&& window.AbortController ? new AbortController() : undefined;
 
 			const inflightRequest = new Request(request, {
 				signal: abortController ? abortController.signal : undefined
@@ -142,17 +140,6 @@ export class D2LFetchDedupe {
 	}
 
 	/**
-	 * @param {Request} request
-	 */
-	_getKey(request) {
-		if (request.headers.has('Authorization')) {
-			return request.url + request.headers.get('Authorization');
-		}
-
-		return request.url;
-	}
-
-	/**
 	 * @param {Response} response
 	 */
 	_clone(response) {
@@ -164,7 +151,7 @@ export class D2LFetchDedupe {
 		//		 "Cannot clone a disturbed response" errors in Safari.
 		//		 See https://github.com/Brightspace/d2l-fetch-dedupe/pull/13 for more details.
 		return response.text()
-			.then(function(textData) {
+			.then((textData) => {
 				response.json = function() {
 					return Promise.resolve(JSON.parse(textData));
 				};
@@ -183,5 +170,20 @@ export class D2LFetchDedupe {
 
 				return response;
 			});
+	}
+
+	/**
+	 * @param {Request} request
+	 */
+	_getKey(request) {
+		if (request.headers.has('Authorization')) {
+			return request.url + request.headers.get('Authorization');
+		}
+
+		return request.url;
+	}
+
+	_reset() {
+		this._inflightRequests = [];
 	}
 }
