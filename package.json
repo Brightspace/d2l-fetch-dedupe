@@ -19,7 +19,7 @@
   "devDependencies": {
     "@open-wc/testing": "^3",
     "@web/dev-server": "^0.3",
-    "@web/test-runner": "^0.16",
+    "@web/test-runner": "^0.17",
     "eslint": "^8",
     "eslint-config-brightspace": "^0.24",
     "sinon": "^15"
