@@ -17,7 +17,7 @@
     "test:headless": "web-test-runner --files \"./test/**/*.test.js\" --node-resolve"
   },
   "devDependencies": {
-    "@open-wc/testing": "^3",
+    "@open-wc/testing": "^4",
     "@web/dev-server": "^0.3",
     "@web/test-runner": "^0.17",
     "eslint": "^8",
