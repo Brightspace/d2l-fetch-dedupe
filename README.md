@@ -27,7 +27,7 @@ This will import the `auth` middleware
 Install the `dedupe` middleware to d2lfetch via the `use` function and then start making your requests.
 
 ```js
-d2lfetch.use({name: 'dedupe' fn: dedupe});
+d2lfetch.use({name: 'dedupe' fn: fetchDedupe});
 const response = await d2lfetch.fetch(
   new Request('http://example.com/api/someentity/')
 );
