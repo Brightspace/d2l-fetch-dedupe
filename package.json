@@ -22,7 +22,7 @@
     "@web/test-runner": "^0.18",
     "eslint": "^8",
     "eslint-config-brightspace": "^1.0",
-    "sinon": "^17"
+    "sinon": "^18"
   },
   "files": [
     "/src"
