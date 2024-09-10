@@ -18,4 +18,4 @@ jobs:
       - name: Lint (JavaScript)
         run: npm run lint
       - name: Unit Tests (cross-browser)
-        run: npx web-test-runner --files "./test/**/*.test.js" --node-resolve --playwright --browsers chromium firefox webkit
+        run: npm run test:unit
