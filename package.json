@@ -19,7 +19,7 @@
   "devDependencies": {
     "@brightspace-ui/testing": "^1",
     "@web/dev-server": "^0.4",
-    "eslint": "^9",
+    "eslint": "^10",
     "eslint-config-brightspace": "^2",
     "sinon": "^21"
   },
