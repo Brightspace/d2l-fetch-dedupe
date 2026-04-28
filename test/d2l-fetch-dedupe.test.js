@@ -173,9 +173,12 @@ describe('d2l-fetch-dedupe', () => {
 			fetchDedupe(firstRequest, firstNext),
 			fetchDedupe(secondRequest, secondNext)
 		]);
-		return responses[0].blob()
-			.then(() => expect.fail())
-			.catch((err) => expect(err.message).to.equal('dedupe middleware cannot be used with blob response bodies'));
+		try {
+			await responses[0].blob();
+			expect.fail();
+		} catch (err) {
+			expect(err.message).to.equal('dedupe middleware cannot be used with blob response bodies');
+		}
 	});
 
 	it('should allow calls to formData() for unmatched responses', async() => {
@@ -201,9 +204,12 @@ describe('d2l-fetch-dedupe', () => {
 			fetchDedupe(firstRequest, firstNext),
 			fetchDedupe(secondRequest, secondNext)
 		]);
-		return responses[0].formData()
-			.then(() => expect.fail())
-			.catch((err) => expect(err.message).to.equal('dedupe middleware cannot be used with formData response bodies'));
+		try {
+			await responses[0].formData();
+			expect.fail();
+		} catch (err) {
+			expect(err.message).to.equal('dedupe middleware cannot be used with formData response bodies');
+		}
 	});
 
 	it('should allow calls to arrayBuffer() for unmatched responses', async() => {
@@ -228,9 +234,12 @@ describe('d2l-fetch-dedupe', () => {
 			fetchDedupe(firstRequest, firstNext),
 			fetchDedupe(secondRequest, secondNext)
 		]);
-		return responses[0].arrayBuffer()
-			.then(() => expect.fail())
-			.catch((err) => expect(err.message).to.equal('dedupe middleware cannot be used with arrayBuffer response bodies'));
+		try {
+			await responses[0].arrayBuffer();
+			expect.fail();
+		} catch (err) {
+			expect(err.message).to.equal('dedupe middleware cannot be used with arrayBuffer response bodies');
+		}
 	});
 
 	it('should match two requests if the URLs are the same and they have no Authorization header', async() => {
@@ -407,7 +416,7 @@ describe('d2l-fetch-dedupe', () => {
 
 		abortController.abort();
 
-		return new Promise((resolve) => {
+		await new Promise((resolve) => {
 			setTimeout(() => {
 				fetchResolvers.resolve();
 				expect(currState).to.deep.equal(successState);
