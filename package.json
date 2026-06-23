@@ -20,7 +20,7 @@
     "@brightspace-ui/testing": "^1",
     "@web/dev-server": "^0.4",
     "eslint": "^9",
-    "eslint-config-brightspace": "^3",
+    "eslint-config-brightspace": "^4",
     "sinon": "^22"
   },
   "files": [
