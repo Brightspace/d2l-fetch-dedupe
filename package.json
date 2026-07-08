@@ -25,5 +25,8 @@
   },
   "files": [
     "/src"
-  ]
+  ],
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  }
 }
